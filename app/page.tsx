@@ -90,7 +90,7 @@ export default function SpecuroApp() {
       <div className="h-screen w-full flex flex-col items-center justify-center bg-white text-black p-10 font-sans">
         <div className="mb-20 text-center flex flex-col items-center">
           <div className="mb-10">
-            <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="https://www.w3.org/TR/SVG/">
               <path d="M12 2H2V12" stroke="black" strokeWidth="1.5"/>
               <path d="M52 2H62V12" stroke="black" strokeWidth="1.5" className="opacity-20"/>
               <path d="M62 52V62H52" stroke="black" strokeWidth="1.5"/>

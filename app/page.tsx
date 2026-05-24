@@ -246,3 +246,23 @@ export default function SpecuroApp() {
                       <div><label className="block mb-1">Delivery</label><p className="text-[11px] font-bold uppercase">{item.lead_time || 'TBD'}</p></div>
                     </div>
                     <div><label className="block mb-1">Specs</label><p className="text-[11px] font-medium font-mono leading-relaxed">{item.dimensions}</p></div>
+                    {item.pdf_url && (
+                      <a href={item.pdf_url} target="_blank" className="inline-flex items-center gap-2 bg-red-50 px-3 py-1.5 border border-red-100 transition-all hover:bg-red-600 group/pdf">
+                        <div className="w-1.5 h-1.5 bg-red-600 group-hover/pdf:bg-white transition-colors"></div>
+                        <span className="text-[9px] font-black text-red-600 group-hover/pdf:text-white uppercase tracking-tighter">PDF SPEC SHEET</span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </main>
+
+      <footer className="mt-40 py-20 text-center border-t border-gray-50 text-[9px] font-bold text-gray-200 uppercase tracking-[0.5em]">
+        SPECURO.DESIGN © 2026 / BEYOND MINIMALISM
+      </footer>
+    </div>
+  );
+}

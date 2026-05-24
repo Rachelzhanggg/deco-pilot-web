@@ -1,10 +1,9 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
 
-// Logo 组件
 const SpecuroLogo = ({ size = 24 }) => (
   <svg width={size} height={size} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
     <defs>
@@ -20,59 +19,61 @@ const SpecuroLogo = ({ size = 24 }) => (
 
 export default function SpecuroApp() {
   const [user, setUser] = useState<any>(null);
-  const [items, setItems] = useState<any[]>([]);
-  const [filteredItems, setFilteredItems] = useState<any[]>([]);
+  const [items, setItems] = useState<any[]>([]); // 原始数据源
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [showToken, setShowToken] = useState(false);
   const [activeCategory, setActiveCategory] = useState('ALL');
   const [activeStyle, setActiveStyle] = useState('ALL');
-
-  // 表单状态
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
 
+  // 监听登录态
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setUser(session?.user ?? null));
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => setUser(session?.user ?? null));
     return () => authListener.subscription.unsubscribe();
   }, []);
 
+  // 【修正逻辑 1】fetchData 仅在用户登录或手动刷新时运行
   useEffect(() => {
     if (user) fetchData();
-  }, [user, activeCategory, activeStyle]);
+  }, [user]);
 
   const fetchData = async () => {
     setLoading(true);
     const { data } = await supabase.from('furniture').select('*').order('created_at', { ascending: false });
-    if (data) {
-      let result = data;
-      if (activeCategory !== 'ALL') result = result.filter(i => i.type === activeCategory);
-      if (activeStyle !== 'ALL') result = result.filter(i => i.style === activeStyle);
-      setFilteredItems(result);
-      setItems(data);
-    }
+    if (data) setItems(data);
     setLoading(false);
   };
 
-  // --- 核心优化：批量删除 + 乐观UI ---
-  const handleDeleteBatch = async () => {
-    const count = selectedIds.length;
-    if (!window.confirm(`PERMANENTLY DELETE ${count} ITEMS?`)) return;
+  // 【修正逻辑 2】使用 useMemo 在本地进行筛选，不请求后端
+  // 这确保了当你删除 item 后，items 状态改变，筛选结果会自动更新且不回流旧数据
+  const filteredItems = useMemo(() => {
+    return items.filter(item => {
+      const categoryMatch = activeCategory === 'ALL' || item.type === activeCategory;
+      const styleMatch = activeStyle === 'ALL' || item.style === activeStyle;
+      return categoryMatch && styleMatch;
+    });
+  }, [items, activeCategory, activeStyle]);
 
-    // 1. 乐观更新：先在界面上把这些项删掉，不等服务器返回
-    const remainingItems = items.filter(item => !selectedIds.includes(item.id));
-    setItems(remainingItems);
-    setFilteredItems(remainingItems.filter(i => (activeCategory === 'ALL' || i.type === activeCategory))); 
+  // 【修正逻辑 3】批量删除逻辑
+  const handleDeleteBatch = async () => {
+    const idsToDelete = [...selectedIds];
+    if (!window.confirm(`PERMANENTLY DELETE ${idsToDelete.length} ITEMS?`)) return;
+
+    // 1. 立即更新本地状态 (Optimistic Update)
+    const newItems = items.filter(item => !idsToDelete.includes(item.id));
+    setItems(newItems); 
     setSelectedIds([]);
 
-    // 2. 发送异步请求给 Supabase
-    const { error } = await supabase.from('furniture').delete().in('id', selectedIds);
+    // 2. 在后台静默删除
+    const { error } = await supabase.from('furniture').delete().in('id', idsToDelete);
 
     if (error) {
-      alert("Delete failed, reverting...");
-      fetchData(); // 失败了才刷新数据库
+      alert("Sync failed. Reverting data...");
+      fetchData(); // 只有失败了才重新拉取数据
     }
   };
 
@@ -102,10 +103,9 @@ export default function SpecuroApp() {
   }
 
   return (
-    <div className="min-h-screen bg-white text-black antialiased">
-      {/* 1. 顶部导航 */}
+    <div className="min-h-screen bg-white text-black antialiased font-sans">
       <nav className="fixed top-0 w-full z-50 bg-white/90 backdrop-blur-md border-b border-black px-10 py-6 flex justify-between items-center">
-        <div className="flex items-center gap-3"><SpecuroLogo size={32} /> <div className="text-2xl font-black italic tracking-tighter uppercase">Specuro.</div></div>
+        <div className="flex items-center gap-3"><SpecuroLogo size={32} /> <div className="text-2xl font-black italic tracking-tighter uppercase leading-none">Specuro.</div></div>
         <div className="flex items-center gap-10">
           <div className="hidden md:flex flex-col items-end mr-4">
             <span className="text-[8px] text-gray-400 font-bold uppercase mb-1 tracking-tighter">Plugin Token:</span>
@@ -120,7 +120,7 @@ export default function SpecuroApp() {
         </div>
       </nav>
 
-      {/* 2. 【新增】顶部悬浮管理条 - 只有选中时才出现 */}
+      {/* 顶部悬浮管理条 */}
       {selectedIds.length > 0 && (
         <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[60] bg-red-600 text-white px-6 py-3 shadow-2xl flex items-center gap-10 animate-in slide-in-from-top-4 duration-300">
            <div className="text-[10px] font-black uppercase tracking-widest">{selectedIds.length} items selected</div>
@@ -131,7 +131,7 @@ export default function SpecuroApp() {
         </div>
       )}
 
-      {/* 3. 底部悬浮筛选 */}
+      {/* 底部悬浮筛选控制台 */}
       <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 flex bg-black text-white px-8 py-4 gap-10 shadow-2xl items-center border border-gray-800">
         <div className="flex gap-6 border-r border-gray-800 pr-10 text-gray-500">
           {['ALL', 'SEATING', 'TABLES', 'LIGHTS', 'STORAGE'].map(cat => (
@@ -146,26 +146,25 @@ export default function SpecuroApp() {
       </div>
 
       <main className="pt-40 pb-40 px-10 max-w-[1600px] mx-auto">
-        <header className="mb-20 flex justify-between items-end">
+        <header className="mb-20 flex justify-between items-end text-black">
           <div>
             <h2 className="text-7xl font-black tracking-tighter uppercase mb-4 leading-none">Archive.</h2>
             <p className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.3em]">Curated Specifications / {filteredItems.length} items</p>
           </div>
           <a href="/specuro-clipper.zip" download className="bg-red-600 text-white text-[10px] font-black px-6 py-4 tracking-widest uppercase hover:bg-black transition-all flex items-center gap-2">
-            <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
-            Download Clipper v1.0
+            <div className="w-1.5 h-1.5 bg-white rounded-full"></div> Download Clipper v1.0
           </a>
         </header>
 
         {loading ? (
-          <div className="text-[10px] font-bold tracking-widest animate-pulse uppercase">Syncing...</div>
+          <div className="text-[10px] font-bold tracking-widest animate-pulse uppercase text-black">Syncing_Database...</div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-24">
             {filteredItems.map((item) => {
               const isSelected = selectedIds.includes(item.id);
               return (
                 <div key={item.id} className="group relative flex flex-col">
-                  {/* 勾选框 - 增强可见度 */}
+                  {/* 高对比度勾选框 */}
                   <div 
                     onClick={() => toggleSelect(item.id)} 
                     className={`absolute top-4 left-4 z-20 w-6 h-6 border-2 cursor-pointer transition-all flex items-center justify-center
@@ -176,23 +175,23 @@ export default function SpecuroApp() {
 
                   <div className={`aspect-[3/4] bg-gray-50 relative overflow-hidden mb-6 border transition-all duration-500 ${isSelected ? 'border-black ring-4 ring-black/5' : 'border-transparent group-hover:border-black'}`}>
                     <img src={item.image_url} alt={item.name} className={`w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105 ${isSelected ? 'opacity-50' : ''}`} />
-                    <a href={item.source_url} target="_blank" className="absolute top-4 right-4 bg-black text-white text-[8px] p-2 font-bold opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-widest z-10">Source ↗</a>
+                    <a href={item.source_url} target="_blank" className="absolute top-4 right-4 bg-black text-white text-[8px] p-2 font-bold opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-widest z-10 font-sans">Source ↗</a>
                   </div>
 
                   <div className={`space-y-4 text-left transition-opacity ${isSelected ? 'opacity-30' : 'opacity-100'}`}>
-                    <div className="flex justify-between items-start gap-4">
+                    <div className="flex justify-between items-start gap-4 text-black">
                       <h3 className="text-sm font-black leading-tight uppercase line-clamp-2">{item.name}</h3>
                       <span className="font-bold text-xs italic whitespace-nowrap">{item.price}</span>
                     </div>
-                    <div className="grid grid-cols-2 border-t border-gray-100 pt-4 gap-4">
-                      <div><label className="block mb-1">Color</label><p className="text-[11px] font-bold uppercase">{item.color || 'N/A'}</p></div>
-                      <div><label className="block mb-1">Delivery</label><p className="text-[11px] font-bold uppercase">{item.lead_time || 'TBD'}</p></div>
+                    <div className="grid grid-cols-2 border-t border-gray-100 pt-4 gap-4 text-black">
+                      <div><label className="block mb-1 text-gray-400">Color</label><p className="text-[11px] font-bold uppercase">{item.color || 'N/A'}</p></div>
+                      <div><label className="block mb-1 text-gray-400">Delivery</label><p className="text-[11px] font-bold uppercase">{item.lead_time || 'TBD'}</p></div>
                     </div>
-                    <div><label className="block mb-1">Specs</label><p className="text-[11px] font-medium font-mono leading-relaxed">{item.dimensions}</p></div>
+                    <div className="text-black"><label className="block mb-1 text-gray-400 font-bold uppercase text-[9px] tracking-widest">Specs</label><p className="text-[11px] font-medium font-mono leading-relaxed">{item.dimensions}</p></div>
                     {item.pdf_url && (
                       <a href={item.pdf_url} target="_blank" className="inline-flex items-center gap-2 bg-red-50 px-3 py-1.5 border border-red-100 hover:bg-red-600 hover:text-white transition-all group/pdf">
                         <div className="w-1.5 h-1.5 bg-red-600 group-hover/pdf:bg-white transition-colors"></div>
-                        <span className="text-[9px] font-black uppercase">PDF SPEC SHEET</span>
+                        <span className="text-[9px] font-black uppercase text-red-600 group-hover/pdf:text-white">PDF SPEC SHEET</span>
                       </a>
                     )}
                   </div>
@@ -202,6 +201,9 @@ export default function SpecuroApp() {
           </div>
         )}
       </main>
+      <footer className="mt-40 py-20 text-center border-t border-gray-50 text-[9px] font-bold text-gray-200 uppercase tracking-[0.5em]">
+        SPECURO.DESIGN © 2026 / BEYOND MINIMALISM
+      </footer>
     </div>
   );
 }

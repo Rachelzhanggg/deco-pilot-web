@@ -34,9 +34,83 @@ export default function SpecuroApp() {
   }, []);
 
   // 2. 登录后获取数据
-  useEffect(() => {
-    if (user) fetchData();
-    else { setItems([]); setFilteredItems([]); }
+ useEffect(() => {
+  if (!user) {
+  return (
+    <div className="h-screen w-full flex flex-col items-center justify-center bg-white text-black p-10">
+      <div className="mb-20 text-center flex flex-col items-center">
+        
+        {/* Logo 方案 1: The Bracket S (极简捕捉框) */}
+        <div className="mb-10">
+          <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            {/* 外部捕捉框 - 极细 1px 线条 */}
+            <path d="M12 2H2V12" stroke="black" strokeWidth="1.5"/>
+            <path d="M52 2H62V12" stroke="black" strokeWidth="1.5" className="opacity-20"/> {/* 故意做一点非对称断开 */}
+            <path d="M62 52V62H52" stroke="black" strokeWidth="1.5"/>
+            <path d="M2 62V52H12" stroke="black" strokeWidth="1.5" className="opacity-20"/>
+            
+            {/* 核心 S - 极致粗重包豪斯感 */}
+            <text 
+              x="32" y="44" 
+              textAnchor="middle" 
+              fill="black" 
+              style={{ fontFamily: 'Helvetica, Arial, sans-serif', fontWeight: 900, fontSize: '38px', letterSpacing: '-0.05em' }}
+            >
+              S
+            </text>
+          </svg>
+        </div>
+        
+        {/* 品牌名 */}
+        <h1 className="text-6xl font-black italic tracking-tighter uppercase leading-none">
+          Specuro.
+        </h1>
+        
+        {/* 新 Slogan: CAPTURE. CURATE. SOURCE. */}
+        <p className="text-[9px] tracking-[0.6em] text-gray-400 uppercase mt-6 font-bold">
+          Capture. Curate. Source.
+        </p>
+      </div>
+
+      {/* 登录表单逻辑保持不变 */}
+      <div className="w-full max-w-xs space-y-4">
+        <input 
+          type="email" placeholder="EMAIL" 
+          className="w-full border-b border-black py-3 text-sm font-bold outline-none caret-red-600" 
+          value={email} onChange={e => setEmail(e.target.value)} 
+        />
+        <input 
+          type="password" placeholder="PASSWORD" 
+          className="w-full border-b border-black py-3 text-sm font-bold outline-none caret-red-600" 
+          value={password} onChange={e => setPassword(e.target.value)} 
+        />
+        {isSignUp && (
+          <input 
+            type="text" placeholder="BETA CODE" 
+            className="w-full border-b border-black py-3 text-sm font-bold outline-none text-red-600 uppercase" 
+            value={inviteCode} onChange={e => setInvitationCode(e.target.value)} 
+          />
+        )}
+        <button 
+          onClick={handleAuth} 
+          className="w-full bg-black text-white py-4 text-[10px] font-black tracking-widest uppercase hover:bg-gray-800 transition-all active:scale-[0.98]"
+        >
+          {isSignUp ? "Register Account" : "Access Archive"}
+        </button>
+        <button 
+          onClick={() => setIsSignUp(!isSignUp)} 
+          className="w-full text-[9px] font-bold text-gray-300 uppercase tracking-tighter hover:text-black transition-colors"
+        >
+          {isSignUp ? "Back to Login" : "Need access? Request Code"}
+        </button>
+      </div>
+
+      <footer className="absolute bottom-10 text-[8px] text-gray-200 font-bold uppercase tracking-[0.4em]">
+        Architecture & Interiors Edition
+      </footer>
+    </div>
+  );
+}
   }, [user, activeCategory, activeStyle]);
 
   const fetchData = async () => {

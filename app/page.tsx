@@ -2,27 +2,33 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
+// 1. 初始化 Supabase 客户端
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
 export default function SpecuroApp() {
+  // --- 状态管理 ---
   const [user, setUser] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [filteredItems, setFilteredItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showToken, setShowToken] = useState(false);
+  
+  // 筛选状态
   const [activeCategory, setActiveCategory] = useState('ALL');
   const [activeStyle, setActiveStyle] = useState('ALL');
 
-  // 注册/登录表单
+  // 表单状态
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [inviteCode, setInvitationCode] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
 
-  // 1. 监听登录态
+  // --- 核心逻辑 ---
+
+  // 监听登录态
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -33,89 +39,15 @@ export default function SpecuroApp() {
     return () => authListener.subscription.unsubscribe();
   }, []);
 
-  // 2. 登录后获取数据
- useEffect(() => {
-  if (!user) {
-  return (
-    <div className="h-screen w-full flex flex-col items-center justify-center bg-white text-black p-10">
-      <div className="mb-20 text-center flex flex-col items-center">
-        
-        {/* Logo 方案 1: The Bracket S (极简捕捉框) */}
-        <div className="mb-10">
-          <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-            {/* 外部捕捉框 - 极细 1px 线条 */}
-            <path d="M12 2H2V12" stroke="black" strokeWidth="1.5"/>
-            <path d="M52 2H62V12" stroke="black" strokeWidth="1.5" className="opacity-20"/> {/* 故意做一点非对称断开 */}
-            <path d="M62 52V62H52" stroke="black" strokeWidth="1.5"/>
-            <path d="M2 62V52H12" stroke="black" strokeWidth="1.5" className="opacity-20"/>
-            
-            {/* 核心 S - 极致粗重包豪斯感 */}
-            <text 
-              x="32" y="44" 
-              textAnchor="middle" 
-              fill="black" 
-              style={{ fontFamily: 'Helvetica, Arial, sans-serif', fontWeight: 900, fontSize: '38px', letterSpacing: '-0.05em' }}
-            >
-              S
-            </text>
-          </svg>
-        </div>
-        
-        {/* 品牌名 */}
-        <h1 className="text-6xl font-black italic tracking-tighter uppercase leading-none">
-          Specuro.
-        </h1>
-        
-        {/* 新 Slogan: CAPTURE. CURATE. SOURCE. */}
-        <p className="text-[9px] tracking-[0.6em] text-gray-400 uppercase mt-6 font-bold">
-          Capture. Curate. Source.
-        </p>
-      </div>
-
-      {/* 登录表单逻辑保持不变 */}
-      <div className="w-full max-w-xs space-y-4">
-        <input 
-          type="email" placeholder="EMAIL" 
-          className="w-full border-b border-black py-3 text-sm font-bold outline-none caret-red-600" 
-          value={email} onChange={e => setEmail(e.target.value)} 
-        />
-        <input 
-          type="password" placeholder="PASSWORD" 
-          className="w-full border-b border-black py-3 text-sm font-bold outline-none caret-red-600" 
-          value={password} onChange={e => setPassword(e.target.value)} 
-        />
-        {isSignUp && (
-          <input 
-            type="text" placeholder="BETA CODE" 
-            className="w-full border-b border-black py-3 text-sm font-bold outline-none text-red-600 uppercase" 
-            value={inviteCode} onChange={e => setInvitationCode(e.target.value)} 
-          />
-        )}
-        <button 
-          onClick={handleAuth} 
-          className="w-full bg-black text-white py-4 text-[10px] font-black tracking-widest uppercase hover:bg-gray-800 transition-all active:scale-[0.98]"
-        >
-          {isSignUp ? "Register Account" : "Access Archive"}
-        </button>
-        <button 
-          onClick={() => setIsSignUp(!isSignUp)} 
-          className="w-full text-[9px] font-bold text-gray-300 uppercase tracking-tighter hover:text-black transition-colors"
-        >
-          {isSignUp ? "Back to Login" : "Need access? Request Code"}
-        </button>
-      </div>
-
-      <footer className="absolute bottom-10 text-[8px] text-gray-200 font-bold uppercase tracking-[0.4em]">
-        Architecture & Interiors Edition
-      </footer>
-    </div>
-  );
-}
+  // 登录后拉取数据并监听筛选
+  useEffect(() => {
+    if (user) fetchData();
+    else { setItems([]); setFilteredItems([]); }
   }, [user, activeCategory, activeStyle]);
 
   const fetchData = async () => {
     setLoading(true);
-    // 关键：由于开启了 RLS，Supabase 会自动根据当前登录的 Session 过滤数据
+    // 注意：已开启 RLS，Supabase 会自动返回属于当前 user_id 的数据
     const { data, error } = await supabase
       .from('furniture')
       .select('*')
@@ -123,8 +55,12 @@ export default function SpecuroApp() {
 
     if (data) {
       let result = data;
-      if (activeCategory !== 'ALL') result = result.filter(i => i.type === activeCategory);
-      if (activeStyle !== 'ALL') result = result.filter(i => i.style === activeStyle);
+      if (activeCategory !== 'ALL') {
+        result = result.filter(i => i.type === activeCategory);
+      }
+      if (activeStyle !== 'ALL') {
+        result = result.filter(i => i.style === activeStyle);
+      }
       setFilteredItems(result);
       setItems(data);
     }
@@ -133,7 +69,10 @@ export default function SpecuroApp() {
 
   const handleAuth = async () => {
     if (isSignUp) {
-      if (inviteCode.toUpperCase() !== "SPECURO-BETA") { alert("INVALID CODE"); return; }
+      if (inviteCode.toUpperCase() !== "SPECURO-BETA") {
+        alert("INVALID INVITATION CODE.");
+        return;
+      }
       const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) alert(error.message);
       else if (data.user) setUser(data.user);
@@ -143,99 +82,163 @@ export default function SpecuroApp() {
     }
   };
 
-  // --- 登录界面 ---
+  const handleClearAll = async () => {
+    if (!window.confirm("CRITICAL: CLEAR ENTIRE ARCHIVE?")) return;
+    const { error } = await supabase.from('furniture').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    if (!error) fetchData();
+  };
+
+  // --- 页面模块：登录/注册界面 ---
   if (!user) {
     return (
-      <div className="h-screen w-full flex flex-col items-center justify-center bg-white text-black p-10">
-        <h1 className="text-6xl font-black italic tracking-tighter uppercase mb-10">Specuro.</h1>
-        <div className="w-full max-w-xs space-y-4">
-          <input type="email" placeholder="EMAIL" className="w-full border-b border-black py-3 text-sm font-bold outline-none" value={email} onChange={e => setEmail(e.target.value)} />
-          <input type="password" placeholder="PASSWORD" className="w-full border-b border-black py-3 text-sm font-bold outline-none" value={password} onChange={e => setPassword(e.target.value)} />
-          {isSignUp && <input type="text" placeholder="BETA CODE" className="w-full border-b border-black py-3 text-sm font-bold outline-none text-red-600 uppercase" value={inviteCode} onChange={e => setInvitationCode(e.target.value)} />}
-          <button onClick={handleAuth} className="w-full bg-black text-white py-4 text-[10px] font-black tracking-widest uppercase">{isSignUp ? "Register" : "Sign In"}</button>
-          <button onClick={() => setIsSignUp(!isSignUp)} className="w-full text-[9px] font-bold text-gray-400 uppercase tracking-tighter">{isSignUp ? "Back" : "Need access? Request Code"}</button>
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-white text-black p-10 font-sans">
+        <div className="mb-20 text-center flex flex-col items-center">
+          {/* Logo 方案 1: The Bracket S */}
+          <div className="mb-10">
+            <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2H2V12" stroke="black" strokeWidth="1.5"/>
+              <path d="M52 2H62V12" stroke="black" strokeWidth="1.5" className="opacity-20"/>
+              <path d="M62 52V62H52" stroke="black" strokeWidth="1.5"/>
+              <path d="M2 62V52H12" stroke="black" strokeWidth="1.5" className="opacity-20"/>
+              <text x="32" y="44" textAnchor="middle" fill="black" style={{ fontWeight: 900, fontSize: '38px', letterSpacing: '-0.05em' }}>S</text>
+            </svg>
+          </div>
+          <h1 className="text-6xl font-black italic tracking-tighter uppercase leading-none">Specuro.</h1>
+          <p className="text-[9px] tracking-[0.6em] text-gray-400 uppercase mt-6 font-bold">Capture. Curate. Source.</p>
         </div>
+
+        <div className="w-full max-w-xs space-y-4">
+          <input type="email" placeholder="EMAIL" className="w-full border-b border-black py-3 text-sm font-bold outline-none caret-red-600 uppercase" value={email} onChange={e => setEmail(e.target.value)} />
+          <input type="password" placeholder="PASSWORD" className="w-full border-b border-black py-3 text-sm font-bold outline-none caret-red-600" value={password} onChange={e => setPassword(e.target.value)} />
+          {isSignUp && (
+            <input type="text" placeholder="BETA CODE" className="w-full border-b border-black py-3 text-sm font-bold outline-none text-red-600 uppercase" value={inviteCode} onChange={e => setInvitationCode(e.target.value)} />
+          )}
+          <button onClick={handleAuth} className="w-full bg-black text-white py-4 text-[10px] font-black tracking-widest uppercase hover:bg-gray-800 transition-all">
+            {isSignUp ? "Register Account" : "Access Archive"}
+          </button>
+          <button onClick={() => setIsSignUp(!isSignUp)} className="w-full text-[9px] font-bold text-gray-300 uppercase tracking-tighter hover:text-black">
+            {isSignUp ? "Back to Login" : "Need access? Request Code"}
+          </button>
+        </div>
+        <footer className="absolute bottom-10 text-[8px] text-gray-200 font-bold uppercase tracking-[0.4em]">Architecture & Interiors Edition</footer>
       </div>
     );
   }
 
-  // --- 主 Archive 界面 ---
+  // --- 页面模块：主看板界面 ---
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white text-black antialiased">
+      {/* 顶部导航 */}
       <nav className="fixed top-0 w-full z-50 bg-white/90 backdrop-blur-md border-b border-black px-10 py-6 flex justify-between items-center">
         <div className="text-2xl font-black italic tracking-tighter uppercase">Specuro.</div>
         
         <div className="flex items-center gap-10">
-          {/* 隐私 Token 显示 */}
-          <div className="flex flex-col items-end mr-4">
-            <span className="text-[8px] text-gray-400 font-bold uppercase mb-1 tracking-tighter">Plugin Token:</span>
+          {/* Token 隐私保护显示 */}
+          <div className="hidden md:flex flex-col items-end mr-4">
+            <span className="text-[8px] text-gray-400 font-bold uppercase mb-1 tracking-tighter">Your Plugin Token:</span>
             <div className="flex items-center gap-2">
                 <code 
                   className="text-[9px] font-black text-black bg-gray-50 px-2 py-1 border border-dashed border-gray-200 cursor-pointer"
-                  onClick={() => { if(!showToken) return; navigator.clipboard.writeText(user.id); alert("COPIED"); }}
+                  onClick={() => {
+                      if(!showToken) return alert("CLICK 'SHOW' TO REVEAL");
+                      navigator.clipboard.writeText(user.id);
+                      alert("TOKEN COPIED");
+                  }}
                 >
                   {showToken ? user.id : "••••••••-••••-••••-••••"}
                 </code>
-                <button onClick={() => setShowToken(!showToken)} className="text-[8px] font-bold border border-black px-1.5 py-0.5 uppercase">
+                <button onClick={() => setShowToken(!showToken)} className="text-[8px] font-bold border border-black px-1.5 py-0.5 uppercase hover:bg-black hover:text-white transition-all">
                     {showToken ? "Hide" : "Show"}
                 </button>
             </div>
           </div>
-          <button onClick={() => supabase.auth.signOut()} className="text-[9px] font-black border border-black px-3 py-2 uppercase">Logout</button>
+          <button onClick={() => supabase.auth.signOut()} className="text-[9px] font-black border border-black px-3 py-2 uppercase transition-all hover:bg-black hover:text-white">Logout</button>
         </div>
       </nav>
 
-      {/* 筛选控制台 */}
+      {/* 底部悬浮筛选器 */}
       <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 flex bg-black text-white px-8 py-4 gap-10 shadow-2xl items-center">
         <div className="flex gap-6 border-r border-gray-800 pr-10">
           {['ALL', 'SEATING', 'TABLES', 'LIGHTS', 'STORAGE'].map(cat => (
-            <button key={cat} onClick={() => setActiveCategory(cat)} className={`text-[9px] font-black tracking-widest ${activeCategory === cat ? 'text-red-500' : 'text-gray-500'}`}>{cat}</button>
+            <button key={cat} onClick={() => setActiveCategory(cat)} className={`text-[9px] font-black tracking-widest transition-colors ${activeCategory === cat ? 'text-red-500' : 'text-gray-400 hover:text-white'}`}>{cat}</button>
           ))}
         </div>
         <div className="flex gap-6">
           {['ALL', 'MODERN', 'MINIMAL', 'INDUSTRIAL'].map(style => (
-            <button key={style} onClick={() => setActiveStyle(style)} className={`text-[9px] font-black tracking-widest ${activeStyle === style ? 'text-white' : 'text-gray-500'}`}>{style}</button>
+            <button key={style} onClick={() => setActiveStyle(style)} className={`text-[9px] font-black tracking-widest transition-colors ${activeStyle === style ? 'text-white' : 'text-gray-500 hover:text-white'}`}>{style}</button>
           ))}
         </div>
       </div>
 
+      {/* 内容主体 */}
       <main className="pt-40 pb-40 px-10 max-w-[1600px] mx-auto">
         <header className="mb-20 flex justify-between items-end">
           <div>
-            <h2 className="text-7xl font-black tracking-tighter uppercase mb-4">My Archive.</h2>
-            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.3em]">Personal Collection / {filteredItems.length} items</p>
+            <div className="flex items-center gap-6 mb-4">
+               <h2 className="text-7xl font-black tracking-tighter uppercase leading-none">Archive.</h2>
+               <button onClick={handleClearAll} className="text-[9px] font-bold text-gray-300 hover:text-red-600 transition-colors uppercase border-b border-transparent hover:border-red-600 pb-0.5">Clear Archive</button>
+            </div>
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.3em]">Curated Specifications / {filteredItems.length} items</p>
           </div>
-          <a href="/specuro-clipper.zip" download className="bg-red-600 text-white text-[10px] font-black px-6 py-3 tracking-widest uppercase hover:bg-black transition-all">Download Clipper</a>
+          {/* 插件下载 */}
+          <a href="/specuro-clipper.zip" download="specuro-clipper.zip" className="bg-red-600 text-white text-[10px] font-black px-6 py-3 tracking-widest uppercase hover:bg-black transition-all flex items-center gap-2">
+            <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
+            Download Clipper v1.0
+          </a>
         </header>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-24">
-          {filteredItems.map((item) => (
-            <div key={item.id} className="group">
-              <div className="aspect-[3/4] bg-gray-50 relative overflow-hidden mb-6 border border-transparent group-hover:border-black transition-all duration-500">
-                <img src={item.image_url} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                <a href={item.source_url} target="_blank" className="absolute top-4 right-4 bg-black text-white text-[8px] p-2 font-bold opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-widest">Source ↗</a>
-              </div>
-              <div className="space-y-4 text-black text-left">
-                <div className="flex justify-between items-start gap-4">
-                  <h3 className="text-sm font-black leading-tight uppercase line-clamp-2">{item.name}</h3>
-                  <span className="font-bold text-xs italic whitespace-nowrap">{item.price}</span>
+        {loading ? (
+          <div className="text-[10px] font-bold tracking-widest animate-pulse uppercase">Syncing_Database...</div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-24">
+            {filteredItems.map((item) => (
+              <div key={item.id} className="group">
+                {/* 1. 图片展示 - 彩色 + 缩放 */}
+                <div className="aspect-[3/4] bg-gray-50 relative overflow-hidden mb-6 border border-transparent group-hover:border-black transition-all duration-500">
+                  <img src={item.image_url} alt={item.name} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" />
+                  <a href={item.source_url} target="_blank" className="absolute top-4 right-4 bg-black text-white text-[8px] p-2 font-bold opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-widest">Source ↗</a>
                 </div>
-                <div className="grid grid-cols-2 border-t border-gray-100 pt-4 gap-4">
-                  <div><label className="block mb-1 text-[9px] text-gray-400 uppercase">Finish</label><p className="text-[11px] font-bold uppercase">{item.color || 'N/A'}</p></div>
-                  <div><label className="block mb-1 text-[9px] text-gray-400 uppercase">Delivery</label><p className="text-[11px] font-bold uppercase">{item.lead_time || 'TBD'}</p></div>
+
+                {/* 2. 详情描述 */}
+                <div className="space-y-4 text-left">
+                  <div className="flex justify-between items-start gap-4">
+                    <h3 className="text-sm font-black leading-tight uppercase line-clamp-2">{item.name}</h3>
+                    <span className="font-bold text-xs italic whitespace-nowrap">{item.price}</span>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 border-t border-gray-100 pt-4 gap-4">
+                    <div>
+                      <label className="block mb-1">Color / Finish</label>
+                      <p className="text-[11px] font-bold uppercase">{item.color || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <label className="block mb-1">Delivery</label>
+                      <p className="text-[11px] font-bold uppercase">{item.lead_time || 'TBD'}</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block mb-1">Dimensions</label>
+                    <p className="text-[11px] font-medium font-mono leading-relaxed">{item.dimensions}</p>
+                  </div>
+
+                  {/* PDF 链接 */}
+                  {item.pdf_url && (
+                    <a href={item.pdf_url} target="_blank" className="inline-flex items-center gap-2 bg-red-50 px-3 py-1.5 border border-red-100 transition-all hover:bg-red-600 group/pdf">
+                      <div className="w-1.5 h-1.5 bg-red-600 group-hover/pdf:bg-white transition-colors"></div>
+                      <span className="text-[9px] font-black text-red-600 group-hover/pdf:text-white uppercase tracking-tighter">PDF SPEC SHEET</span>
+                    </a>
+                  )}
                 </div>
-                <div><label className="block mb-1 text-[9px] text-gray-400 uppercase">Technical Specs</label><p className="text-[11px] font-medium font-mono leading-relaxed">{item.dimensions}</p></div>
-                {item.pdf_url && (
-                  <a href={item.pdf_url} target="_blank" className="inline-flex items-center gap-2 bg-red-50 px-3 py-1.5 border border-red-100 transition-all hover:bg-red-600 group/pdf">
-                    <div className="w-1.5 h-1.5 bg-red-600 group-hover/pdf:bg-white"></div>
-                    <span className="text-[9px] font-black text-red-600 group-hover/pdf:text-white uppercase tracking-tighter">PDF SPEC SHEET</span>
-                  </a>
-                )}
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </main>
+
+      <footer className="mt-40 py-20 text-center border-t border-gray-50 text-[9px] font-bold text-gray-200 uppercase tracking-[0.5em]">
+        SPECURO.DESIGN © 2026 / BEYOND MINIMALISM
+      </footer>
     </div>
   );
 }

@@ -7,14 +7,45 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// --- 统一 Logo 组件 ---
-const SpecuroLogo = ({ size = 24, color = "black", bracketOpacity = "0.2" }) => (
+// --- 升级版高级质感 Logo 组件 ---
+const SpecuroLogo = ({ size = 24, bracketOpacity = "0.3" }) => (
   <svg width={size} height={size} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M12 2H2V12" stroke={color} strokeWidth="2.5"/>
-    <path d="M52 2H62V12" stroke={color} strokeWidth="2.5" opacity={bracketOpacity}/>
-    <path d="M62 52V62H52" stroke={color} strokeWidth="2.5"/>
-    <path d="M2 62V52H12" stroke={color} strokeWidth="2.5" opacity={bracketOpacity}/>
-    <text x="32" y="46" textAnchor="middle" fill={color} style={{ fontWeight: 900, fontSize: '38px', fontFamily: 'Helvetica, Arial, sans-serif' }}>S</text>
+    <defs>
+      {/* 模拟皮革/哑光金属的渐变：深黑色到深炭灰的微妙过渡 */}
+      <linearGradient id="premiumMaterial" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#000000" />
+        <stop offset="45%" stopColor="#333333" />
+        <stop offset="55%" stopColor="#111111" />
+        <stop offset="100%" stopColor="#000000" />
+      </linearGradient>
+    </defs>
+
+    {/* 修正后的四个角：全部朝向中心收拢 */}
+    {/* 左上角 */}
+    <path d="M12 2H2V12" stroke="black" strokeWidth="1.5" />
+    {/* 右上角 */}
+    <path d="M52 2H62V12" stroke="black" strokeWidth="1.5" opacity={bracketOpacity} />
+    {/* 右下角 */}
+    <path d="M62 52V62H52" stroke="black" strokeWidth="1.5" />
+    {/* 左下角 - 已修正：L型朝内 */}
+    <path d="M2 52V62H12" stroke="black" strokeWidth="1.5" opacity={bracketOpacity} />
+
+    {/* 设计感 S：斜体 + 材质光泽 + 细微的位移 */}
+    <text 
+      x="33" y="46" 
+      textAnchor="middle" 
+      fill="url(#premiumMaterial)" 
+      style={{ 
+        fontWeight: 900, 
+        fontSize: '44px', 
+        fontFamily: 'Helvetica Neue, Helvetica, Arial, sans-serif',
+        fontStyle: 'italic',
+        letterSpacing: '-0.05em',
+        filter: 'drop-shadow(0px 0.5px 0.5px rgba(255,255,255,0.2))' // 增加一点金属边缘的反光感
+      }}
+    >
+      S
+    </text>
   </svg>
 );
 

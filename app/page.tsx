@@ -24,16 +24,41 @@ export default function SpecuroArchive() {
   }, [authorized, activeCategory, activeStyle]);
 
   const fetchData = async () => {
-    const { data } = await supabase.from('furniture').select('*').order('created_at', { ascending: false });
+    setLoading(true);
+    // 直接获取所有数据
+    const { data, error } = await supabase
+      .from('furniture')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error("Fetch error:", error);
+    }
+
     if (data) {
+      console.log("Fetched data:", data); // 调试：在浏览器控制台看数据
       let result = data;
-      if (activeCategory !== 'ALL') result = result.filter(i => i.type === activeCategory);
-      if (activeStyle !== 'ALL') result = result.filter(i => i.style === activeStyle);
+
+      // 更加宽松的筛选逻辑
+      if (activeCategory !== 'ALL') {
+        result = result.filter(i => 
+          i.type && i.type.toUpperCase().includes(activeCategory.toUpperCase())
+        );
+      }
+      if (activeStyle !== 'ALL') {
+        result = result.filter(i => 
+          i.style && i.style.toUpperCase() === activeStyle.toUpperCase()
+        );
+      }
+      
       setFilteredItems(result);
       setItems(data);
     }
+    setLoading(false);
   };
-
+  
+  
+  
   if (!authorized) {
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center bg-white">

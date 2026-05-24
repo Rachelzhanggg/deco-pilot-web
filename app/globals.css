@@ -1,6 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 :root {
   --foreground-rgb: 0, 0, 0;
@@ -11,19 +9,25 @@
   body {
     background-color: white;
     color: black;
-    /* 强制使用 Helvetica, 顶级设计师的最爱 */
+    /* 强制使用 Helvetica */
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
 }
 
-/* 极致极简的排版系统 */
+/* 极致极简的排版系统 - 使用标准 CSS 属性避免构建错误 */
 h1, h2, h3 {
-  @apply font-black uppercase tracking-tighter;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: -0.05em;
 }
 
 label {
-  @apply text-[9px] font-bold uppercase tracking-widest text-gray-400;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #9ca3af; /* gray-400 */
 }
 
 /* 取消所有圆角 */
@@ -31,7 +35,7 @@ label {
   border-radius: 0 !important;
 }
 
-/* 隐藏滚动条但保留功能 */
+/* 隐藏滚动条 */
 ::-webkit-scrollbar {
   display: none;
 }

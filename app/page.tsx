@@ -147,7 +147,7 @@ export default function SpecuroApp() {
             <button 
               onClick={async (e:any) => {
                 e.target.innerText = "ENTERING...";
-                const { error } = await supabase.auth.signInWithPassword({ email: "demo@specuro.design", password: "guest123456" });
+                const { error } = await supabase.auth.signInWithPassword({ email: "demo@specuro.design", password: "123456" });
                 if (error) { alert("Demo not ready."); e.target.innerText = "BROWSE AS GUEST (DEMO)"; }
               }}
               className="w-full border border-black/10 py-3 text-[9px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all"
